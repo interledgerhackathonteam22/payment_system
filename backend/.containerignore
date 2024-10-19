@@ -1,0 +1,36 @@
+# Files to be ignored
+
+## Git
+
+.git
+.gitignore
+
+## Build Files
+
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+tmp/*
+
+## VisualStudioCode
+
+.vscode/*
+
+## Web
+
+tailwind.config.js
+node_modules/*
+bun.lockb
+
+## Runtime data
+
+pids
+*.pid
+*.seed
+*.pid.lock
+
