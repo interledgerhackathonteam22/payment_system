@@ -33,7 +33,7 @@ const WALLET_ADDRESS = "https://ilp.interledger-test.dev/oni";
 const PRIVATE_KEY_BASE64 = 'LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1DNENBUUF3QlFZREsyVndCQ0lFSVAzdW4yWnlPRFo0WkIwd2FRMkw3WFBNSlBIN1BMQWM4Y2NsNXluQzBWTTcKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQ==';
 
 // Function to generate token and create an incoming payment
-async function generateTokenAndCreateIncomingPayment() {
+async function generateTokenAndCreateIncomingPayment(retries = 3) {
   try {
     const privateKeyBuffer = Buffer.from(PRIVATE_KEY_BASE64, 'base64');
 
@@ -66,7 +66,7 @@ async function generateTokenAndCreateIncomingPayment() {
     }
 
     const accessToken = grant.access_token.value;
-
+    
     const incomingPayment = await client.incomingPayment.create(
       {
         url: new URL(WALLET_ADDRESS).origin,
@@ -79,14 +79,18 @@ async function generateTokenAndCreateIncomingPayment() {
           assetCode: "ZAR",
           assetScale: 2,
         },
-        expiresAt: new Date(Date.now() + 60_000 * 1).toISOString(),
+        expiresAt: new Date(Date.now() + 60_000 * 10).toISOString(),
       },
     );
 
-    console.log("Incoming payment ID =", incomingPayment);
-    return incomingPayment;
+    console.log("INCOMING_PAYMENT_ACCESS_TOKEN =", accessToken);
+    return { incomingPayment, accessToken };
 
   } catch (error) {
+    if (retries > 0) {
+      console.error(`Attempt failed. Retries left: ${retries}. Retrying...`);
+      return generateTokenAndCreateIncomingPayment(retries - 1);
+    }
     console.error("An error occurred:", error);
     throw error;
   }
@@ -95,7 +99,7 @@ async function generateTokenAndCreateIncomingPayment() {
 // Function to check if an incoming payment exists for the given name, surname, and today's date
 async function checkExistingPayment(name,surname) {
   const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-  console.log("esdsdsd")
+  // console.log("esdsdsd")
   const q = query(
     collection(db, 'incoming_payments'),
     where('createdAt', '>=', `${today}T00:00:00Z`),
@@ -125,14 +129,18 @@ app.post('/create-incoming-payment', async (req, res) => {
       return res.status(400).json({ message: 'Payment already processed for today' });
     }
 
-    const incomingPayment = await generateTokenAndCreateIncomingPayment();
+    const { incomingPayment, accessToken } = await generateTokenAndCreateIncomingPayment();
     const monthlySubAmount = parseInt(incomingPayment.incomingAmount.value);
     const incomeAmountValue = incomingPayment.incomingAmount.value / 100;
     const monthlySubAmountV = (monthlySubAmount * 15) / 100;
     const monthlyPlan = String(monthlySubAmountV);
-
+    console.log("oni")
+    console.log(accessToken);
+    console.log("oni")
+    
     // Prepare the data for Firestore based on the incoming payment structure
     const paymentData = {
+      // incomingPaymentToken : incomingPayment.
       id: incomingPayment.id,
       walletAddress: incomingPayment.walletAddress,
       incomingAmount: incomeAmountValue,
@@ -144,7 +152,8 @@ app.post('/create-incoming-payment', async (req, res) => {
       expiresAt: incomingPayment.expiresAt,
       methods: incomingPayment.methods,
       name,            // Use name from request body
-      surname          // Use surname from request body
+      surname,         // Use surname from request body
+      accessToken      // Use accessToken from the generated token
     };
 
     const docRef = doc(collection(db, 'incoming_payments')); // Create a new document reference
