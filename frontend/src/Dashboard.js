@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from './firebaseConfig/firebaseConfig';
 
 const Dashboard = () => {
@@ -21,17 +21,23 @@ const Dashboard = () => {
         return date.toLocaleString('en-US', options);
     }
 
-
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch data from Firebase Firestore
-                const querySnapshot = await getDocs(collection(db, "incoming_payments"));
-                const paymentsData = querySnapshot.docs.map(doc => ({
+                // Fetch the incoming payments collection from Firestore
+                const paymentsQuerySnapshot = await getDocs(collection(db, "incoming_payments"));
+                const paymentsData = paymentsQuerySnapshot.docs.map(doc => ({
                     ...doc.data(),
                     id: doc.id
                 }));
+
+                // Fetch the subscribers collection from Firestore
+                const subscribersQuerySnapshot = await getDocs(collection(db, "Subscribers"));
+                const totalSubscribers = subscribersQuerySnapshot.docs.length;
+
+                // Set the payments data and total subscribers state
                 setData(paymentsData);
+                setTotalSubscribers(totalSubscribers);
             } catch (error) {
                 console.error("Error fetching data:", error);
             }
@@ -40,12 +46,16 @@ const Dashboard = () => {
         fetchData();
     }, []);
 
-
-
-
     const filteredData = data.filter(entry =>
         `${entry.name} ${entry.lastName}`.toLowerCase().includes(filter.toLowerCase())
     );
+
+    const [totalSubscribers, setTotalSubscribers] = useState(0);
+    const totalMoneyEarned = filteredData.reduce(
+        (total, entry) => total + (parseFloat(entry.incomingAmount) || 0),
+        0
+    ).toFixed(2);
+
     return (
         <div className="dashboard">
             <div className="header">
@@ -60,6 +70,10 @@ const Dashboard = () => {
                     onChange={e => setFilter(e.target.value)}
                     className="filter-input"
                 />
+                <div className="stats">
+                    <span>Total Subscribers: {totalSubscribers}</span>
+                    <span>Total Money Earned: R {totalMoneyEarned}</span>
+                </div>
             </div>
 
             <div className="table-container">
@@ -71,7 +85,6 @@ const Dashboard = () => {
                         <th>Surname</th>
                         <th>Wallet Address</th>
                         <th>Pending Amount (R)</th>
-
                     </tr>
                     </thead>
                     <tbody>
@@ -83,7 +96,6 @@ const Dashboard = () => {
                                 <td>{entry.surname}</td>
                                 <td>{entry.walletAddress}</td>
                                 <td>{entry.incomingAmount}</td>
-
                             </tr>
                         ))
                     ) : (
@@ -109,24 +121,24 @@ const Dashboard = () => {
                 .header {
                     display: flex;
                     align-items: center;
-                    background: white; /* Set header background to white */
-                    color: #08FCFC; /* Set text color */
+                    background: white;
+                    color: #08FCFC;
                     padding: 10px 20px;
-                    border-radius: 10px; /* Rounded corners */
-                    width: calc(100% - 20px); /* Adjusted to leave space on ends */
-                    max-width: 1200px; /* Adjusted max width */
+                    border-radius: 10px;
+                    width: calc(100% - 20px);
+                    max-width: 1200px;
                     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-                    margin-bottom: 20px; /* Space below header */
-                    margin-left: 30px; /* Add margin to the left */
-                    margin-right: 30px; /* Add margin to the right */
+                    margin-bottom: 20px;
+                    margin-left: 30px;
+                    margin-right: 30px;
                 }
 
                 .logo {
                     font-size: 3rem;
-                    font-weight: 1000; /* Set to a higher weight for bolder appearance */
-                    color: #08FCFC; /* Set logo color */
+                    font-weight: 1000;
+                    color: #08FCFC;
                     margin-right: 50px;
-                    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Add shadow to the logo */
+                    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
                 }
 
                 h1 {
@@ -135,6 +147,11 @@ const Dashboard = () => {
                 }
 
                 .filter-container {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
+                    max-width: 1200px;
                     margin: 20px 0;
                 }
 
@@ -143,49 +160,24 @@ const Dashboard = () => {
                     border: 1px solid #08FCFC;
                     border-radius: 5px;
                     outline: none;
-                    width: 300px; /* Set a width for the input */
+                    width: 300px;
                     transition: border-color 0.3s;
                 }
 
                 .filter-input:focus {
-                    border-color: #00eaff; /* Change border color on focus */
+                    border-color: #00eaff;
                 }
 
-                .form-container {
-                    margin: 20px 0;
+                .stats {
                     display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                }
-
-                .form-container input {
-                    margin: 5px;
-                    padding: 10px;
-                    border: 1px solid #08FCFC;
-                    border-radius: 5px;
-                    outline: none;
-                    width: 300px; /* Set a width for the input */
-                    transition: border-color 0.3s;
-                }
-
-                .form-container button {
-                    margin: 5px;
-                    padding: 10px 15px;
-                    background-color: #08FCFC;
-                    border: none;
-                    border-radius: 5px;
-                    color: white;
-                    cursor: pointer;
-                    transition: background-color 0.3s;
-                }
-
-                .form-container button:hover {
-                    background-color: #00eaff; /* Darker shade on hover */
+                    gap: 20px;
+                    color: #00eaff;
+                    font-size: 1rem;
                 }
 
                 .table-container {
-                    width: 100%; /* Make table container full width */
-                    max-width: 1500px; /* Adjusted max width */
+                    width: 100%;
+                    max-width: 1500px;
                     background: #3c3c3c;
                     border-radius: 10px;
                     overflow: hidden;
@@ -193,7 +185,7 @@ const Dashboard = () => {
                 }
 
                 .data-table {
-                    width: 100%; /* Table stretches to full width */
+                    width: 100%;
                     border-collapse: collapse;
                     color: #00eaff;
                 }
@@ -215,40 +207,34 @@ const Dashboard = () => {
                     background: #555;
                 }
 
-                .data-table th {
-                    font-weight: bold;
-                }
-
-                .data-table td {
-                    font-size: 0.9rem;
-                }
-
-                /* Media Queries for Responsiveness */
                 @media (max-width: 600px) {
                     .header {
-                        flex-direction: column; /* Stack items on smaller screens */
-                        align-items: flex-start; /* Align to the start */
-                        padding: 15px; /* Adjust padding */
+                        flex-direction: column;
+                        align-items: flex-start;
+                        padding: 15px;
                     }
 
                     .logo {
-                        font-size: 2rem; /* Reduce logo size */
+                        font-size: 2rem;
                     }
 
                     h1 {
-                        font-size: 1.25rem; /* Adjust header size */
+                        font-size: 1.25rem;
                     }
 
-                    .filter-input {
-                        width: 100%; /* Full width on small screens */
+                    .filter-container {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 10px;
                     }
 
-                    .form-container input {
-                        width: 100%; /* Full width on small screens */
+                    .filter-input, .stats {
+                        width: 100%;
+                        text-align: center;
                     }
 
-                    .form-container button {
-                        width: 100%; /* Full width for buttons */
+                    .stats {
+                        justify-content: center;
                     }
                 }
             `}</style>
