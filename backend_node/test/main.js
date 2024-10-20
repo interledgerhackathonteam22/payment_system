@@ -97,6 +97,7 @@ app.post('/create-incoming-payment', async (req, res) => {
   try {
     const incomingPayment = await generateTokenAndCreateIncomingPayment();
 
+    // Prepare the data for Firestore based on the incoming payment structure
     const paymentData = {
       id: incomingPayment.id,
       walletAddress: incomingPayment.walletAddress,
@@ -107,6 +108,8 @@ app.post('/create-incoming-payment', async (req, res) => {
       updatedAt: incomingPayment.updatedAt,
       expiresAt: incomingPayment.expiresAt,
       methods: incomingPayment.methods,
+      name: 'John',       // Hardcoded name
+      surname: 'Doe'      // Hardcoded surname
     };
 
     const docRef = doc(collection(db, 'incoming_payments')); // Create a new document reference
