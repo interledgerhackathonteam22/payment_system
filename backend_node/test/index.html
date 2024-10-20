@@ -4,42 +4,86 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login to Create Incoming Payment</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #6D83F2, #A8E3FF);
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
       margin: 0;
-      background-color: #f0f0f0;
+      padding: 0 20px;
     }
     .container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
       text-align: center;
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 100%;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-weight: 600;
+      font-size: 24px;
+      color: #333;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      transition: border 0.3s ease, background-color 0.3s ease;
+      color: #333;
+    }
+    input:focus {
+      border-color: #2596be;
+      background-color: #E3F5FB;
+      outline: none;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      background-color: #4CAF50;
+      width: 100%;
+      padding: 12px;
+      background-color: #2596be;
       color: white;
+      font-size: 18px;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
     }
     button:hover {
-      background-color: #45a049;
+      background-color: #1e7ca6;
+    }
+    .message, .error {
+      margin-top: 15px;
+      font-size: 16px;
+      display: none;
     }
     .message {
-      margin-top: 20px;
-      color: green;
+      color: #28A745;
     }
     .error {
-      margin-top: 20px;
-      color: red;
+      color: #DC3545;
+    }
+    @media (max-width: 480px) {
+      .container {
+        padding: 30px 20px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      input, button {
+        font-size: 15px;
+      }
     }
   </style>
 </head>
@@ -47,6 +91,8 @@
 
   <div class="container">
     <h1>Login to Create Incoming Payment</h1>
+    <input type="text" id="name" placeholder="Enter your name" required />
+    <input type="text" id="surname" placeholder="Enter your surname" required />
     <button id="loginBtn">Login</button>
     <div id="responseMessage" class="message"></div>
     <div id="errorMessage" class="error"></div>
@@ -54,29 +100,42 @@
 
   <script>
     document.getElementById("loginBtn").addEventListener("click", async function() {
+      const name = document.getElementById("name").value;
+      const surname = document.getElementById("surname").value;
       const responseMessage = document.getElementById("responseMessage");
       const errorMessage = document.getElementById("errorMessage");
 
-      responseMessage.textContent = '';
-      errorMessage.textContent = '';
+      responseMessage.style.display = 'none';
+      errorMessage.style.display = 'none';
+
+      if (!name || !surname) {
+        errorMessage.textContent = 'Please fill in both name and surname.';
+        errorMessage.style.display = 'block';
+        return;
+      }
 
       try {
-        // Make the POST request to the backend
+        // Make the POST request to the backend with name and surname
         const response = await fetch('http://localhost:3000/create-incoming-payment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ name, surname }) // Send name and surname in the request body
         });
 
         if (response.ok) {
           const data = await response.json();
           responseMessage.textContent = `Incoming payment created successfully! Payment URL: ${data.paymentUrl}`;
+          responseMessage.style.display = 'block';
         } else {
-          errorMessage.textContent = 'Failed to create incoming payment. Please try again.';
+          const errorData = await response.json();
+          errorMessage.textContent = errorData.message || 'Failed to create incoming payment. Please try again.';
+          errorMessage.style.display = 'block';
         }
       } catch (error) {
         errorMessage.textContent = 'An error occurred while creating the payment.';
+        errorMessage.style.display = 'block';
         console.error(error);
       }
     });

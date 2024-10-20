@@ -111,40 +111,41 @@ async function checkExistingPayment(name,surname) {
 
 // POST endpoint to trigger incoming payment creation and save data in Firestore
 app.post('/create-incoming-payment', async (req, res) => {
-  const name = 'll';      // Hardcoded name
-  const surname = 'joe';    // Hardcoded surname
+  const { name, surname } = req.body;
+
+  if (!name || !surname) {
+    return res.status(400).json({ message: 'Name and surname are required' });
+  }
 
   try {
     // Check if there is already an incoming payment for today
     const existingPayment = await checkExistingPayment(name, surname);
 
     if (existingPayment) {
-      console.log("Payment already processed for today")
       return res.status(400).json({ message: 'Payment already processed for today' });
     }
-    console.log("esdsdsd")
 
     const incomingPayment = await generateTokenAndCreateIncomingPayment();
-    const monthlySubAmount = parseInt(incomingPayment.incomingAmount.value); // Use parseInt or Number
-    const monthlySubAmountV = ((monthlySubAmount * 15) / 100);
+    const monthlySubAmount = parseInt(incomingPayment.incomingAmount.value);
+    const incomeAmountValue = incomingPayment.incomingAmount.value / 100;
+    const monthlySubAmountV = (monthlySubAmount * 15) / 100;
     const monthlyPlan = String(monthlySubAmountV);
-    console.log(monthlyPlan);
+
     // Prepare the data for Firestore based on the incoming payment structure
     const paymentData = {
       id: incomingPayment.id,
       walletAddress: incomingPayment.walletAddress,
-      incomingAmount: incomingPayment.incomingAmount,
-      monthlySubAmount : monthlyPlan,
+      incomingAmount: incomeAmountValue,
+      monthlySubAmount: monthlyPlan,
       receivedAmount: incomingPayment.receivedAmount,
       completed: incomingPayment.completed,
       createdAt: incomingPayment.createdAt,
       updatedAt: incomingPayment.updatedAt,
       expiresAt: incomingPayment.expiresAt,
       methods: incomingPayment.methods,
-      name: name,            // Hardcoded name
-      surname: surname       // Hardcoded surname
+      name,            // Use name from request body
+      surname          // Use surname from request body
     };
-    console.log("esdsdsd")
 
     const docRef = doc(collection(db, 'incoming_payments')); // Create a new document reference
     await setDoc(docRef, paymentData); // Save data
