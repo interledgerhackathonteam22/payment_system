@@ -43,7 +43,7 @@ The data on the dashboard is simulated based on partially hardcoded subscriber d
 Onesmus Maenzanise - https://github.com/oni1997
 Thabang Mokoena - https://github.com/Shaunnn-m
 Lethabo Letsoalo - https://github.com/LethaboCodes
-Stanleychapo - https://github.com/Stanleychapo
+Stanley Chapo - https://github.com/Stanleychapo
 
 
 Learnings
