@@ -1,18 +1,37 @@
 import React, { useEffect, useState } from 'react';
+import { collection, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { db } from './firebaseConfig/firebaseConfig';
 
 const Dashboard = () => {
     const [data, setData] = useState([]);
     const [filter, setFilter] = useState('');
-    const [editMode, setEditMode] = useState(false);
-    const [currentEntry, setCurrentEntry] = useState({}); // For editing
-    const [newEntry, setNewEntry] = useState({ firstName: '', lastName: '', price: '', time: '', description: '' });
+
+    function formatDateTime(isoString) {
+        const date = new Date(isoString);
+
+        const options = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        };
+
+        return date.toLocaleString('en-US', options);
+    }
+
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/data'); // Update with your API endpoint
-                const result = await response.json();
-                setData(result);
+                // Fetch data from Firebase Firestore
+                const querySnapshot = await getDocs(collection(db, "incoming_payments"));
+                const paymentsData = querySnapshot.docs.map(doc => ({
+                    ...doc.data(),
+                    id: doc.id
+                }));
+                setData(paymentsData);
             } catch (error) {
                 console.error("Error fetching data:", error);
             }
@@ -21,49 +40,12 @@ const Dashboard = () => {
         fetchData();
     }, []);
 
-    const handleAddEntry = async () => {
-        const response = await fetch('http://localhost:5000/api/data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newEntry)
-        });
-        const addedEntry = await response.json();
-        setData([...data, addedEntry]);
-        setNewEntry({ firstName: '', lastName: '', price: '', time: '', description: '' }); // Reset the form
-    };
 
-    const handleEditEntry = async () => {
-        const response = await fetch(`http://localhost:5000/api/data/${currentEntry.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(currentEntry)
-        });
-        const updatedEntry = await response.json();
-        setData(data.map(entry => (entry.id === updatedEntry.id ? updatedEntry : entry)));
-        setEditMode(false);
-        setCurrentEntry({});
-    };
 
-    const handleDeleteEntry = async (id) => {
-        await fetch(`http://localhost:5000/api/data/${id}`, {
-            method: 'DELETE'
-        });
-        setData(data.filter(entry => entry.id !== id));
-    };
-
-    const handleEditClick = (entry) => {
-        setEditMode(true);
-        setCurrentEntry(entry);
-    };
 
     const filteredData = data.filter(entry =>
-        `${entry.firstName} ${entry.lastName}`.toLowerCase().includes(filter.toLowerCase())
+        `${entry.name} ${entry.lastName}`.toLowerCase().includes(filter.toLowerCase())
     );
-
     return (
         <div className="dashboard">
             <div className="header">
@@ -80,76 +62,39 @@ const Dashboard = () => {
                 />
             </div>
 
-            {/* New Entry Form */}
-            <div className="form-container">
-                <h2>{editMode ? 'Edit Entry' : 'Add New Entry'}</h2>
-                <input
-                    type="text"
-                    placeholder="First Name"
-                    value={editMode ? currentEntry.firstName : newEntry.firstName}
-                    onChange={e => editMode ? setCurrentEntry({ ...currentEntry, firstName: e.target.value }) : setNewEntry({ ...newEntry, firstName: e.target.value })}
-                />
-                <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={editMode ? currentEntry.lastName : newEntry.lastName}
-                    onChange={e => editMode ? setCurrentEntry({ ...currentEntry, lastName: e.target.value }) : setNewEntry({ ...newEntry, lastName: e.target.value })}
-                />
-                <input
-                    type="number"
-                    placeholder="Price (R)"
-                    value={editMode ? currentEntry.price : newEntry.price}
-                    onChange={e => editMode ? setCurrentEntry({ ...currentEntry, price: e.target.value }) : setNewEntry({ ...newEntry, price: e.target.value })}
-                />
-                <input
-                    type="number"
-                    placeholder="Time (hrs)"
-                    value={editMode ? currentEntry.time : newEntry.time}
-                    onChange={e => editMode ? setCurrentEntry({ ...currentEntry, time: e.target.value }) : setNewEntry({ ...newEntry, time: e.target.value })}
-                />
-                <input
-                    type="text"
-                    placeholder="Description"
-                    value={editMode ? currentEntry.description : newEntry.description}
-                    onChange={e => editMode ? setCurrentEntry({ ...currentEntry, description: e.target.value }) : setNewEntry({ ...newEntry, description: e.target.value })}
-                />
-                <button onClick={editMode ? handleEditEntry : handleAddEntry}>{editMode ? 'Update Entry' : 'Add Entry'}</button>
-                {editMode && <button onClick={() => { setEditMode(false); setCurrentEntry({}); }}>Cancel</button>}
-            </div>
-
             <div className="table-container">
                 <table className="data-table">
                     <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Price (R)</th>
-                            <th>Time (hrs)</th>
-                            <th>Description</th>
-                            <th>Actions</th>
-                        </tr>
+                    <tr>
+                        <th>Date</th>
+                        <th>Name</th>
+                        <th>Surname</th>
+                        <th>Wallet Address</th>
+                        <th>Pending Amount (R)</th>
+
+                    </tr>
                     </thead>
                     <tbody>
-                        {filteredData.length > 0 ? (
-                            filteredData.map((entry, index) => (
-                                <tr key={index}>
-                                    <td>{entry.firstName} {entry.lastName}</td>
-                                    <td>{entry.price.toFixed(2)}</td>
-                                    <td>{entry.time}</td>
-                                    <td>{entry.description}</td>
-                                    <td>
-                                        <button onClick={() => handleEditClick(entry)}>Edit</button>
-                                        <button onClick={() => handleDeleteEntry(entry.id)}>Delete</button>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="5">No data available</td>
+                    {filteredData.length > 0 ? (
+                        filteredData.map((entry, index) => (
+                            <tr key={index}>
+                                <td>{formatDateTime(entry.createdAt)}</td>
+                                <td>{entry.name}</td>
+                                <td>{entry.surname}</td>
+                                <td>{entry.walletAddress}</td>
+                                <td>{entry.incomingAmount}</td>
+
                             </tr>
-                        )}
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan="5">No data available</td>
+                        </tr>
+                    )}
                     </tbody>
                 </table>
             </div>
+
             <style jsx>{`
                 .dashboard {
                     background-color: #333333;
