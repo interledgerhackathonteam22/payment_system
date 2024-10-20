@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { createAuthenticatedClient, isPendingGrant } = require('@interledger/open-payments');
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, doc, setDoc } = require('firebase/firestore');
+const { getFirestore, collection, doc, setDoc, query, where, getDocs } = require('firebase/firestore');
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -92,25 +92,59 @@ async function generateTokenAndCreateIncomingPayment() {
   }
 }
 
+// Function to check if an incoming payment exists for the given name, surname, and today's date
+async function checkExistingPayment(name,surname) {
+  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+  console.log("esdsdsd")
+  const q = query(
+    collection(db, 'incoming_payments'),
+    where('createdAt', '>=', `${today}T00:00:00Z`),
+    where('createdAt', '<=', `${today}T23:59:59Z`),
+    where('name', '==', name),
+    where('surname', '==', surname)
+  );
+  console.log("esdsdsd")
+
+  const querySnapshot = await getDocs(q);
+  return !querySnapshot.empty; // Return true if there are existing payments
+}
+
 // POST endpoint to trigger incoming payment creation and save data in Firestore
 app.post('/create-incoming-payment', async (req, res) => {
-  try {
-    const incomingPayment = await generateTokenAndCreateIncomingPayment();
+  const name = 'll';      // Hardcoded name
+  const surname = 'joe';    // Hardcoded surname
 
+  try {
+    // Check if there is already an incoming payment for today
+    const existingPayment = await checkExistingPayment(name, surname);
+
+    if (existingPayment) {
+      console.log("Payment already processed for today")
+      return res.status(400).json({ message: 'Payment already processed for today' });
+    }
+    console.log("esdsdsd")
+
+    const incomingPayment = await generateTokenAndCreateIncomingPayment();
+    const monthlySubAmount = parseInt(incomingPayment.incomingAmount.value); // Use parseInt or Number
+    const monthlySubAmountV = ((monthlySubAmount * 15) / 100);
+    const monthlyPlan = String(monthlySubAmountV);
+    console.log(monthlyPlan);
     // Prepare the data for Firestore based on the incoming payment structure
     const paymentData = {
       id: incomingPayment.id,
       walletAddress: incomingPayment.walletAddress,
       incomingAmount: incomingPayment.incomingAmount,
+      monthlySubAmount : monthlyPlan,
       receivedAmount: incomingPayment.receivedAmount,
       completed: incomingPayment.completed,
       createdAt: incomingPayment.createdAt,
       updatedAt: incomingPayment.updatedAt,
       expiresAt: incomingPayment.expiresAt,
       methods: incomingPayment.methods,
-      name: 'John',       // Hardcoded name
-      surname: 'Doe'      // Hardcoded surname
+      name: name,            // Hardcoded name
+      surname: surname       // Hardcoded surname
     };
+    console.log("esdsdsd")
 
     const docRef = doc(collection(db, 'incoming_payments')); // Create a new document reference
     await setDoc(docRef, paymentData); // Save data
